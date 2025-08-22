@@ -1,0 +1,11 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 25.1.0   # pick a specific Black release (check PyPI for latest)
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pre-commit/mirrors-pylint
+    rev: v2.17.5  # pick the version you want
+    hooks:
+      - id: pylint
+        args: ["--disable=C0114,C0115,C0116"]
