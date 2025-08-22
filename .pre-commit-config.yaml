@@ -8,7 +8,8 @@ repos:
     rev: v3.3.8  # Use the official pylint repository and a compatible version for Python 3.13
     hooks:
       - id: pylint
-        args: ["--disable=C0114,C0115,C0116"]
+        language: system
+        args: ["--disable=C0114,C0115,C0116", "--ignore=venv,static"]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.3.0
