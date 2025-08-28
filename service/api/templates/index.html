@@ -34,6 +34,15 @@
                         {% endfor %}
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Interval:</label><br>
+                        {% for i in ["1m","2m","5m","15m","30m","60m","90m","1h","1d","5d","1wk","1mo","3mo"] %}
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="interval" value="{{ i }}" {% if i == interval %}checked{% endif %}>
+                                <label class="form-check-label">{{ i }}</label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Y-axis scale:</label><br>
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="radio" name="scale" value="linear" {% if scale == "linear" %}checked{% endif %}>
@@ -64,7 +73,7 @@
                                     <button type="submit" class="btn btn-sm btn-danger">Remove</button>
                                 </form>
                             </div>
-                            <img src="/trend/{{ stock }}?period={{ period }}&scale={{ scale }}" class="img-fluid rounded" alt="{{ stock }} chart">
+                            <img src="/trend/{{ stock }}?period={{ period }}&interval={{ interval }}&scale={{ scale }}" class="img-fluid rounded" alt="{{ stock }} chart">
                         </div>
                     </div>
                 </div>

@@ -20,7 +20,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=f"{BASE_DIR}/templates")
 
 # Default cookie values
-DEFAULT_STATE = {"stocks": ["MSFT"], "period": "1y", "scale": "log"}
+DEFAULT_STATE = {"stocks": ["MSFT"], "period": "1y", "interval": "1d", "scale": "log"}
 
 app = FastAPI()
 app.mount(
@@ -37,6 +37,7 @@ async def homepage(request: Request):
             "request": request,
             "stocks": state["stocks"],
             "period": state["period"],
+            "interval": state["interval"],
             "scale": state["scale"],
         },
     )
@@ -99,8 +100,30 @@ def _get_stock_data(ticker: str, period: str, interval: str):
     df = data.copy()
     df.index = pd.to_datetime(df.index)
 
-    # x-axis: days since start
-    x = (df.index - df.index[0]).days.values.astype(float)
+    # Calculate time difference from the first data point
+    time_diff = df.index - df.index[0]
+
+    # Determine the unit for x based on the interval
+    if "m" in interval:
+        # Convert to minutes for minute intervals
+        x = time_diff.total_seconds().values / 60.0
+    elif "h" in interval:
+        # Convert to hours for hour intervals
+        x = time_diff.total_seconds().values / 3600.0
+    elif "d" in interval:
+        # Use days for day intervals
+        x = time_diff.days.values.astype(float)
+    elif "wk" in interval:
+        # Convert to weeks for week intervals
+        x = (time_diff.days.values / 7.0).astype(float)
+    elif "mo" in interval:
+        # Convert to months (approx. 30 days) for month intervals
+        x = (time_diff.days.values / 30.0).astype(float)
+    else:
+        # Fallback to total seconds if interval unit is not explicitly handled
+        # This ensures x is always non-constant for very short periods/intervals
+        x = time_diff.total_seconds().values.astype(float)
+
     y = df["Close"].values
 
     return df, x, y
@@ -140,6 +163,26 @@ async def get_trend(  # pylint: disable=R0914
 
     # Least-squares fit on log-price
     y_log = np.log(y)
+
+    # Debugging: Check for problematic data before polyfit
+    if len(x) < 2:
+        print(f"Debug: Insufficient data points for polyfit. len(x)={len(x)}")
+        return Response(
+            content=b"Insufficient data for trend calculation", media_type="text/plain"
+        )
+    if np.any(np.isnan(y_log)) or np.any(np.isinf(y_log)):
+        print(f"Debug: NaN or Inf values in y_log. y_log={y_log}")
+        return Response(
+            content=b"Invalid data for trend calculation (NaN/Inf in log prices)",
+            media_type="text/plain",
+        )
+    if np.std(x) == 0:
+        print(f"Debug: x values are constant. x={x}")
+        return Response(
+            content=b"Cannot calculate trend with constant x values",
+            media_type="text/plain",
+        )
+
     slope_ls, intercept_ls = np.polyfit(x, y_log, 1)
     trend_ls = np.exp(intercept_ls + slope_ls * x)  # back to price space
 
@@ -200,7 +243,7 @@ def get_state_from_cookie(request: Request):
         except json.JSONDecodeError:
             pass
     # defaults
-    return {"stocks": [], "period": "6mo", "scale": "linear", "interval": "1d"}
+    return DEFAULT_STATE.copy()
 
 
 @app.post("/add")
@@ -229,10 +272,14 @@ async def remove_stock(request: Request, ticker: str = Form(...)):
 
 @app.post("/set_options")
 async def set_options(
-    request: Request, period: str = Form(...), scale: str = Form(...)
+    request: Request,
+    period: str = Form(...),
+    interval: str = Form(...),
+    scale: str = Form(...),
 ):
     state = get_state_from_cookie(request)
     state["period"] = period
+    state["interval"] = interval
     state["scale"] = scale
 
     response = RedirectResponse(url="/", status_code=303)
