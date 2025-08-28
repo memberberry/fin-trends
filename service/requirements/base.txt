@@ -2,3 +2,7 @@ fastapi
 uvicorn
 pydantic
 httpx
+yfinance
+matplotlib
+jinja2
+python-multipart
